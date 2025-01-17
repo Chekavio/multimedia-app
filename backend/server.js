@@ -6,6 +6,7 @@ import { sequelize } from './models/index.js'; // Ajoute `.js`
 import filmRoutes from './routes/filmRoutes.js'; // Ajoute `.js`
 import userRoutes from './routes/userRoutes.js'; // Ajoute `.js`
 import bookRoutes from './routes/bookRoutes.js';
+import gameRoutes from './routes/gameRoutes.js';
 
 
 const app = express();
@@ -19,6 +20,7 @@ app.use(bodyParser.json());
 app.use('/api/films', filmRoutes); // Routes films
 app.use('/api/users', userRoutes); // Routes utilisateurs
 app.use('/api/books', bookRoutes);
+app.use('/api/games', gameRoutes);
 
 // Test de connexion à la base de données
 sequelize.authenticate()

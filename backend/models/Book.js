@@ -13,6 +13,7 @@ const Book = sequelize.define('Book', {
   publisher: { type: DataTypes.STRING, allowNull: true },
   genres: { type: DataTypes.ARRAY(DataTypes.STRING), allowNull: true },
   cover_url: { type: DataTypes.STRING, allowNull: true },
+  average_rate: { type: DataTypes.NUMERIC(3, 2), defaultValue: 0 },
   created_at: { type: DataTypes.DATE, defaultValue: DataTypes.NOW },
 }, { tableName: 'books', timestamps: false });
 

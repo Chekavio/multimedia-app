@@ -12,7 +12,7 @@ const Review = sequelize.define('Review', {
     allowNull: false,
   },
   resource_type: {
-    type: DataTypes.STRING(20),
+    type: DataTypes.ENUM('track', 'album', 'artist', 'film', 'book', 'game'),
     allowNull: false,
   },
   resource_id: {
@@ -22,6 +22,7 @@ const Review = sequelize.define('Review', {
   rating: {
     type: DataTypes.NUMERIC(2, 1),
     allowNull: false,
+    validate: { min: 1, max: 5 },
   },
   review_text: {
     type: DataTypes.TEXT,
@@ -34,6 +35,12 @@ const Review = sequelize.define('Review', {
 }, {
   tableName: 'reviews',
   timestamps: false,
+  indexes: [
+    {
+      unique: true, // ✅ Empêche un utilisateur de noter plusieurs fois la même ressource
+      fields: ['user_id', 'resource_id', 'resource_type']
+    }
+  ]
 });
 
 export default Review;

@@ -11,6 +11,7 @@ const Game = sequelize.define('Game', {
   platforms: { type: DataTypes.ARRAY(DataTypes.STRING), allowNull: true },
   description: { type: DataTypes.TEXT, allowNull: true }, // Ajout pour stocker la description
   cover_url: { type: DataTypes.STRING, allowNull: true },
+  average_rate: { type: DataTypes.NUMERIC(3, 2), defaultValue: 0 },
   created_at: { type: DataTypes.DATE, defaultValue: DataTypes.NOW },
 }, { tableName: 'games', timestamps: false });
 

@@ -11,6 +11,7 @@ const Film = sequelize.define('Film', {
   description: { type: DataTypes.TEXT, allowNull: true },
   poster_url: { type: DataTypes.STRING, allowNull: true },
   duration: { type: DataTypes.INTEGER, allowNull: true },
+  average_rate: { type: DataTypes.NUMERIC(3, 2), defaultValue: 0 },
   casting: { type: DataTypes.TEXT, allowNull: true }, // ✅ AJOUT DE CASTING
   created_at: { type: DataTypes.DATE, defaultValue: DataTypes.NOW },
 }, { tableName: 'films', timestamps: false });

@@ -29,10 +29,5 @@ const User = sequelize.define('User', {
   timestamps: false,
 });
 
-// Ajouter les relations ici
-User.associate = (models) => {
-  // Exemple : un utilisateur peut créer plusieurs reviews
-  // User.hasMany(models.Review, { foreignKey: 'user_id' });
-};
 
 export default User;

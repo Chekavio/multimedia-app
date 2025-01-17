@@ -7,6 +7,7 @@ import filmRoutes from './routes/filmRoutes.js'; // Ajoute `.js`
 import userRoutes from './routes/userRoutes.js'; // Ajoute `.js`
 import bookRoutes from './routes/bookRoutes.js';
 import gameRoutes from './routes/gameRoutes.js';
+import musicRoutes from './routes/musicRoutes.js'; // 🎶 Import des routes musique
 
 
 const app = express();
@@ -21,6 +22,7 @@ app.use('/api/films', filmRoutes); // Routes films
 app.use('/api/users', userRoutes); // Routes utilisateurs
 app.use('/api/books', bookRoutes);
 app.use('/api/games', gameRoutes);
+app.use('/api/music', musicRoutes); // 🎶 Routes musique
 
 // Test de connexion à la base de données
 sequelize.authenticate()

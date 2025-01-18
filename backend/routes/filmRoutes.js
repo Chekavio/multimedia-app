@@ -1,11 +1,10 @@
 import express from 'express';
-import { getPopularFilms, getRecentlyReleasedFilms, getRecentlyAddedFilms, getFilmDetails } from '../controllers/filmController.js'; // ✅ Correction ici
+import { getPopularFilms, getFilmDetails } from '../controllers/filmController.js';
 
 const router = express.Router();
 
 router.get('/popular', getPopularFilms);
-router.get('/recently-released', getRecentlyReleasedFilms);
-router.get('/recently-added', getRecentlyAddedFilms);
+  
 router.get('/:id', getFilmDetails);
 
 export default router;

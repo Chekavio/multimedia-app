@@ -1,93 +1,45 @@
 import { Book, Review } from '../models/index.js';
-import Sequelize from 'sequelize';
 
-// 📌 1. Récupérer les livres les plus populaires (basé sur la moyenne des notes des reviews)
 const getPopularBooks = async (req, res) => {
+  console.log("📚 Requête reçue sur /api/books/popular !");
+
   try {
+    console.log("🛠 Exécution de la requête Sequelize...");
+
     const books = await Book.findAll({
       attributes: [
         'book_id',
+        'google_books_id',
         'title',
         'authors',
         'published_date',
-        'publisher',
-        'genres',
-        'cover_url',
         'description',
         'page_count',
         'language',
-        'created_at',
-        [Sequelize.literal(`(
-          SELECT AVG("reviews"."rating")
-          FROM "reviews"
-          WHERE "reviews"."resource_id" = "Book"."book_id"
-          AND "reviews"."resource_type" = 'book'
-        )`), 'averageRating'],
-        [Sequelize.literal(`(
-          SELECT COUNT("reviews"."review_id")
-          FROM "reviews"
-          WHERE "reviews"."resource_id" = "Book"."book_id"
-          AND "reviews"."resource_type" = 'book'
-        )`), 'reviewCount'],
+        'publisher',
+        'genres',
+        'cover_url',
+        'average_rate',
+        'created_at'
       ],
-      order: [
-        [
-          Sequelize.literal(`(
-            SELECT AVG("reviews"."rating")
-            FROM "reviews"
-            WHERE "reviews"."resource_id" = "Book"."book_id"
-            AND "reviews"."resource_type" = 'book'
-          )`),
-          'DESC NULLS LAST',
-        ],
-        ['published_date', 'DESC'],
-      ],
+      order: [['average_rate', 'DESC NULLS LAST'], ['published_date', 'DESC']],
       limit: 20,
     });
 
+    console.log("✅ Livres récupérés avec succès !");
+    console.log("📜 Nombre de livres retournés :", books.length);
+
     res.json(books);
   } catch (error) {
-    console.error('❌ Erreur lors de la récupération des livres populaires:', error);
-    res.status(500).json({ message: 'Erreur lors de la récupération des livres populaires' });
-  }
-};
-
-// 📌 2. Récupérer les livres récemment publiés
-const getRecentlyPublishedBooks = async (req, res) => {
-  try {
-    const books = await Book.findAll({
-      where: {
-        published_date: {
-          [Sequelize.Op.lte]: new Date(),
-        },
-      },
-      order: [['published_date', 'DESC']],
-      limit: 20,
+    console.error("❌ Erreur lors de la récupération des livres populaires :", error);
+    res.status(500).json({ 
+      message: 'Erreur lors de la récupération des livres populaires', 
+      error: error.message 
     });
-
-    res.json(books);
-  } catch (error) {
-    console.error('❌ Erreur lors de la récupération des livres récemment publiés:', error);
-    res.status(500).json({ message: 'Erreur lors de la récupération des livres récemment publiés' });
   }
 };
 
-// 📌 3. Récupérer les livres récemment ajoutés dans la BDD
-const getRecentlyAddedBooks = async (req, res) => {
-  try {
-    const books = await Book.findAll({
-      order: [['created_at', 'DESC']],
-      limit: 20,
-    });
 
-    res.json(books);
-  } catch (error) {
-    console.error('❌ Erreur lors de la récupération des livres récemment ajoutés:', error);
-    res.status(500).json({ message: 'Erreur lors de la récupération des livres récemment ajoutés' });
-  }
-};
-
-// 📌 4. Récupérer les détails d'un livre spécifique
 const getBookDetails = async (req, res) => {
   const { id } = req.params;
 
@@ -104,16 +56,13 @@ const getBookDetails = async (req, res) => {
       ],
     });
 
-    if (!book) {
-      return res.status(404).json({ message: 'Livre non trouvé' });
-    }
+    if (!book) return res.status(404).json({ message: 'Livre non trouvé' });
 
     res.json(book);
   } catch (error) {
-    console.error('❌ Erreur lors de la récupération des détails du livre:', error);
+    console.error('Erreur lors de la récupération des détails du livre:', error);
     res.status(500).json({ message: 'Erreur lors de la récupération des détails du livre' });
   }
 };
 
-// 🔹 Exporter toutes les fonctions
-export { getPopularBooks, getRecentlyPublishedBooks, getRecentlyAddedBooks, getBookDetails };
+export { getPopularBooks, getBookDetails };

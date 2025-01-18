@@ -1,44 +1,25 @@
-const API_BASE_URL = process.env.REACT_APP_API_BASE_URL || 'http://localhost:5000/api';
+const API_BASE_URL = "http://localhost:5000/api";
+
+export const bookService = {
+  getPopularBooks: () => fetch(`${API_BASE_URL}/books/popular`).then(res => res.json()),
+  getBookDetails: (id) => fetch(`${API_BASE_URL}/books/${id}`).then(res => res.json()),
+};
+
+export const gameService = {
+  getPopularGames: () => fetch(`${API_BASE_URL}/games/popular`).then(res => res.json()),
+  getGameDetails: (id) => fetch(`${API_BASE_URL}/games/${id}`).then(res => res.json()),
+};
+
+export const musicService = {
+  getPopularArtists: () => fetch(`${API_BASE_URL}/music/artists/popular`).then(res => res.json()),
+  getPopularAlbums: () => fetch(`${API_BASE_URL}/music/albums/popular`).then(res => res.json()),
+  getPopularTracks: () => fetch(`${API_BASE_URL}/music/tracks/popular`).then(res => res.json()),
+  getArtistDetails: (id) => fetch(`${API_BASE_URL}/music/artists/${id}`).then(res => res.json()),
+  getAlbumDetails: (id) => fetch(`${API_BASE_URL}/music/albums/${id}`).then(res => res.json()),
+  getTrackDetails: (id) => fetch(`${API_BASE_URL}/music/tracks/${id}`).then(res => res.json()),
+};
 
 export const filmService = {
-  async getPopularFilms() {
-    try {
-      const response = await fetch(`${API_BASE_URL}/films/popular`);
-      if (!response.ok) throw new Error(`Erreur ${response.status}: ${response.statusText}`);
-      return await response.json();
-    } catch (error) {
-      console.error('Erreur lors de la récupération des films populaires:', error);
-      return [];
-    }
-  },
-  async getRecentlyReleasedFilms() {
-    try {
-      const response = await fetch(`${API_BASE_URL}/films/recently-released`);
-      if (!response.ok) throw new Error(`Erreur ${response.status}: ${response.statusText}`);
-      return await response.json();
-    } catch (error) {
-      console.error('Erreur lors de la récupération des films récemment sortis:', error);
-      return [];
-    }
-  },
-  async getRecentlyAddedFilms() {
-    try {
-      const response = await fetch(`${API_BASE_URL}/films/recently-added`);
-      if (!response.ok) throw new Error(`Erreur ${response.status}: ${response.statusText}`);
-      return await response.json();
-    } catch (error) {
-      console.error('Erreur lors de la récupération des films récemment ajoutés:', error);
-      return [];
-    }
-  },
-  async getFilmDetails(filmId) {
-    try {
-      const response = await fetch(`${API_BASE_URL}/films/${filmId}`);
-      if (!response.ok) throw new Error(`Erreur ${response.status}: ${response.statusText}`);
-      return await response.json();
-    } catch (error) {
-      console.error('Erreur lors de la récupération des détails du film:', error);
-      throw error;
-    }
-  },
+  getPopularFilms: () => fetch(`${API_BASE_URL}/films/popular`).then(res => res.json()),
+  getFilmDetails: (id) => fetch(`${API_BASE_URL}/films/${id}`).then(res => res.json()),
 };

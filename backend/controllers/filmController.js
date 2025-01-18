@@ -1,88 +1,61 @@
 import { Film, Review } from '../models/index.js';
 import Sequelize from 'sequelize';
 
+
 const getPopularFilms = async (req, res) => {
+  console.log("📌 Requête reçue sur /api/films/popular");
+
   try {
+    console.log("🔍 Exécution de la requête Sequelize...");
+
+    // Ajout d'un log pour voir la requête SQL générée par Sequelize
+    console.log("🛠 Requête Sequelize en cours...");
+    
     const films = await Film.findAll({
       attributes: [
         'film_id',
+        'tmdb_id',
         'title',
         'release_date',
         'director',
-        'casting',
         'genres',
         'description',
         'poster_url',
         'duration',
-        'created_at',
-        [Sequelize.literal(`(
-          SELECT AVG("reviews"."rating")
-          FROM "reviews"
-          WHERE "reviews"."resource_id" = "Film"."film_id"
-          AND "reviews"."resource_type" = 'film'
-        )`), 'averageRating'],
-        [Sequelize.literal(`(
-          SELECT COUNT("reviews"."review_id")
-          FROM "reviews"
-          WHERE "reviews"."resource_id" = "Film"."film_id"
-          AND "reviews"."resource_type" = 'film'
-        )`), 'reviewCount'],
+        'average_rate',
+        'casting',
+        'created_at'
       ],
-      order: [
-        [
-          Sequelize.literal(`(
-            SELECT AVG("reviews"."rating")
-            FROM "reviews"
-            WHERE "reviews"."resource_id" = "Film"."film_id"
-            AND "reviews"."resource_type" = 'film'
-          )`),
-          'DESC NULLS LAST',
-        ],
-        ['release_date', 'DESC'],
-      ],
+      order: [['average_rate', 'DESC NULLS LAST'], ['release_date', 'DESC']],
       limit: 20,
+      raw: true, // Voir la structure brute
     });
+
+    console.log("✅ Requête Sequelize exécutée avec succès !");
+    console.log("📜 Films récupérés :", films.length);
+    console.log("🧐 Données complètes des films :", JSON.stringify(films, null, 2));
 
     res.json(films);
   } catch (error) {
-    console.error('Erreur lors de la récupération des films populaires:', error);
-    res.status(500).json({ message: 'Erreur lors de la récupération des films populaires' });
-  }
-};
-
-const getRecentlyReleasedFilms = async (req, res) => {
-  try {
-    const films = await Film.findAll({
-      where: {
-        release_date: {
-          [Sequelize.Op.lte]: new Date(),
-        },
-      },
-      order: [['release_date', 'DESC']],
-      limit: 20,
+    console.error("❌ Erreur lors de la récupération des films populaires :", error);
+    res.status(500).json({ 
+      message: 'Erreur lors de la récupération des films populaires', 
+      error: error.message 
     });
-
-    res.json(films);
-  } catch (error) {
-    console.error('Erreur lors de la récupération des films récemment sortis:', error);
-    res.status(500).json({ message: 'Erreur lors de la récupération des films récemment sortis' });
   }
 };
 
-const getRecentlyAddedFilms = async (req, res) => {
-  try {
-    const films = await Film.findAll({
-      order: [['created_at', 'DESC']],
-      limit: 20,
-    });
 
-    res.json(films);
-  } catch (error) {
-    console.error('Erreur lors de la récupération des films récemment ajoutés:', error);
-    res.status(500).json({ message: 'Erreur lors de la récupération des films récemment ajoutés' });
-  }
-};
 
+
+
+
+
+
+
+/**
+ * Récupérer les détails d'un film
+ */
 const getFilmDetails = async (req, res) => {
   const { id } = req.params;
 
@@ -99,16 +72,13 @@ const getFilmDetails = async (req, res) => {
       ],
     });
 
-    if (!film) {
-      return res.status(404).json({ message: 'Film non trouvé' });
-    }
+    if (!film) return res.status(404).json({ message: 'Film non trouvé' });
 
     res.json(film);
   } catch (error) {
-    console.error('Erreur lors de la récupération des détails du film:', error);
+    console.error('❌ Erreur lors de la récupération des détails du film:', error);
     res.status(500).json({ message: 'Erreur lors de la récupération des détails du film' });
   }
 };
 
-// 🔹 Exporter toutes les fonctions correctement
-export { getPopularFilms, getRecentlyReleasedFilms, getRecentlyAddedFilms, getFilmDetails };
+export { getPopularFilms, getFilmDetails };

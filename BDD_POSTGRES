@@ -1,0 +1,152 @@
+CREATE EXTENSION IF NOT EXISTS "pgcrypto";
+
+CREATE TABLE artists (
+    artist_id SERIAL PRIMARY KEY,
+    resource_id UUID UNIQUE NOT NULL DEFAULT gen_random_uuid(),
+    spotify_id VARCHAR(255) UNIQUE NOT NULL,
+    name VARCHAR(255) NOT NULL,
+    image_url TEXT,
+    genres VARCHAR(255)[],  -- ✅ Utilisation de VARCHAR(255)[] au lieu de TEXT[]
+    label VARCHAR(255),
+    artist_type VARCHAR(10) CHECK (artist_type IN ('solo', 'band')),
+    formed_date DATE,
+    disband_date DATE,
+    origin VARCHAR(255),
+    average_rate NUMERIC(3,2) DEFAULT 0,
+    created_at TIMESTAMP DEFAULT NOW()
+);
+
+CREATE TABLE albums (
+    album_id SERIAL PRIMARY KEY,
+    resource_id UUID UNIQUE NOT NULL DEFAULT gen_random_uuid(),
+    spotify_id VARCHAR(255) UNIQUE NOT NULL,
+    title VARCHAR(255) NOT NULL,
+    artist_id INTEGER NOT NULL REFERENCES artists(artist_id) ON DELETE CASCADE,
+    release_date DATE,
+    cover_url TEXT,
+    duration INTEGER,
+    number_of_tracks INTEGER,
+    country VARCHAR(255),
+    label VARCHAR(255),
+    explicit_lyrics BOOLEAN DEFAULT FALSE,
+    genres VARCHAR(255)[],  -- ✅ Utilisation de VARCHAR(255)[] au lieu de TEXT[]
+    styles VARCHAR(255)[],  -- ✅ Utilisation de VARCHAR(255)[] au lieu de TEXT[]
+    record_type VARCHAR(50),
+    average_rate NUMERIC(3,2) DEFAULT 0,
+    created_at TIMESTAMP DEFAULT NOW()
+);
+
+CREATE TABLE tracks (
+    track_id SERIAL PRIMARY KEY,
+    resource_id UUID UNIQUE NOT NULL DEFAULT gen_random_uuid(),
+    spotify_id VARCHAR(255) UNIQUE NOT NULL,
+    title VARCHAR(255) NOT NULL,
+    album_id INTEGER NOT NULL REFERENCES albums(album_id) ON DELETE CASCADE,
+    artist_id INTEGER NOT NULL REFERENCES artists(artist_id) ON DELETE CASCADE,
+    duration INTEGER,
+    track_number INTEGER,
+    explicit BOOLEAN DEFAULT FALSE,
+    average_rate NUMERIC(3,2) DEFAULT 0,
+    created_at TIMESTAMP DEFAULT NOW()
+);
+CREATE TABLE books (
+    book_id SERIAL PRIMARY KEY,
+    resource_id UUID UNIQUE NOT NULL DEFAULT gen_random_uuid(),
+    google_books_id VARCHAR(255) UNIQUE NOT NULL,
+    title VARCHAR(255) NOT NULL,
+    authors VARCHAR(255)[],  -- ✅ Utilisation de VARCHAR(255)[] au lieu de TEXT[]
+    published_date DATE,
+    description TEXT,
+    page_count INTEGER,
+    language VARCHAR(50),
+    publisher VARCHAR(255),
+    genres VARCHAR(255)[],  -- ✅ Utilisation de VARCHAR(255)[] au lieu de TEXT[]
+    cover_url TEXT,
+    average_rate NUMERIC(3,2) DEFAULT 0,
+    created_at TIMESTAMP DEFAULT NOW()
+);
+CREATE TABLE games (
+    game_id SERIAL PRIMARY KEY,
+    resource_id UUID UNIQUE NOT NULL DEFAULT gen_random_uuid(),
+    igdb_id INTEGER UNIQUE NOT NULL,
+    title VARCHAR(255) NOT NULL,
+    release_date DATE,
+    publisher VARCHAR(255),
+    genres VARCHAR(255)[],  -- ✅ Utilisation de VARCHAR(255)[] au lieu de TEXT[]
+    platforms VARCHAR(255)[],  -- ✅ Utilisation de VARCHAR(255)[] au lieu de TEXT[]
+    description TEXT,
+    cover_url TEXT,
+    average_rate NUMERIC(3,2) DEFAULT 0,
+    created_at TIMESTAMP DEFAULT NOW()
+);
+
+CREATE TABLE films (
+    film_id SERIAL PRIMARY KEY,
+    resource_id UUID UNIQUE NOT NULL DEFAULT gen_random_uuid(),
+    tmdb_id INTEGER UNIQUE NOT NULL,
+    title VARCHAR(255) NOT NULL,
+    release_date DATE,
+    director VARCHAR(255),
+    genres VARCHAR(255)[],  -- ✅ Utilisation de VARCHAR(255)[] au lieu de TEXT[]
+    description TEXT,
+    poster_url TEXT,
+    duration INTEGER,
+    average_rate NUMERIC(3,2) DEFAULT 0,
+    casting VARCHAR(255)[],
+    created_at TIMESTAMP DEFAULT NOW()
+);
+CREATE TABLE users (
+    user_id SERIAL PRIMARY KEY,
+    resource_id UUID UNIQUE NOT NULL DEFAULT gen_random_uuid(),
+    username VARCHAR(255) UNIQUE NOT NULL,
+    email VARCHAR(255) UNIQUE NOT NULL,
+    password_hash TEXT NOT NULL,
+    profile_picture TEXT
+);
+CREATE TABLE reviews (
+    review_id SERIAL PRIMARY KEY,
+    user_id INTEGER NOT NULL REFERENCES users(user_id) ON DELETE CASCADE,
+    resource_type VARCHAR(10) CHECK (resource_type IN ('track', 'album', 'artist', 'film', 'book', 'game')),
+    resource_id UUID NOT NULL,
+    rating NUMERIC(2,1) CHECK (rating >= 1 AND rating <= 5) NOT NULL,
+    review_text TEXT,
+    created_at TIMESTAMP DEFAULT NOW(),
+    UNIQUE (user_id, resource_type, resource_id)
+);
+
+CREATE INDEX idx_films_resource_id ON films(resource_id);
+CREATE INDEX idx_books_resource_id ON books(resource_id);
+CREATE INDEX idx_games_resource_id ON games(resource_id);
+CREATE INDEX idx_albums_resource_id ON albums(resource_id);
+CREATE INDEX idx_artists_resource_id ON artists(resource_id);
+CREATE INDEX idx_tracks_resource_id ON tracks(resource_id);
+CREATE INDEX idx_users_resource_id ON users(resource_id);
+CREATE INDEX idx_reviews_resource_id ON reviews(resource_id);
+
+CREATE OR REPLACE FUNCTION update_average_rate()
+RETURNS TRIGGER AS $$
+BEGIN
+    UPDATE films SET average_rate = (
+        SELECT COALESCE(AVG(rating), 0) FROM reviews WHERE resource_type = 'film' AND resource_id = NEW.resource_id
+    ) WHERE resource_id = NEW.resource_id;
+
+    UPDATE books SET average_rate = (
+        SELECT COALESCE(AVG(rating), 0) FROM reviews WHERE resource_type = 'book' AND resource_id = NEW.resource_id
+    ) WHERE resource_id = NEW.resource_id;
+
+    UPDATE games SET average_rate = (
+        SELECT COALESCE(AVG(rating), 0) FROM reviews WHERE resource_type = 'game' AND resource_id = NEW.resource_id
+    ) WHERE resource_id = NEW.resource_id;
+
+    UPDATE albums SET average_rate = (
+        SELECT COALESCE(AVG(rating), 0) FROM reviews WHERE resource_type = 'album' AND resource_id = NEW.resource_id
+    ) WHERE resource_id = NEW.resource_id;
+
+    RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+CREATE TRIGGER trg_update_average_rate
+AFTER INSERT OR UPDATE ON reviews
+FOR EACH ROW
+EXECUTE FUNCTION update_average_rate();

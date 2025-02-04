@@ -15,8 +15,8 @@ const Review = sequelize.define('Review', {
     type: DataTypes.ENUM('track', 'album', 'artist', 'film', 'book', 'game'),
     allowNull: false,
   },
-  resource_id: {
-    type: DataTypes.INTEGER,
+  resource_id: { 
+    type: DataTypes.UUID, // ✅ Doit correspondre aux UUID des autres tables
     allowNull: false,
   },
   rating: {
@@ -37,7 +37,7 @@ const Review = sequelize.define('Review', {
   timestamps: false,
   indexes: [
     {
-      unique: true, // ✅ Empêche un utilisateur de noter plusieurs fois la même ressource
+      unique: true,
       fields: ['user_id', 'resource_id', 'resource_type']
     }
   ]

@@ -9,80 +9,16 @@ import Album from './Album.js';
 import Track from './Track.js';
 
 // 🔹 Relation avec `User`
-Review.belongsTo(User, { foreignKey: 'user_id' });
+Review.belongsTo(User, { foreignKey: 'user_id', as: 'User' });
 User.hasMany(Review, { foreignKey: 'user_id' });
 
-// 🔹 Relations entre `Film`, `Book` et `Game`
-Film.hasMany(Review, {
-  foreignKey: 'resource_id',
-  as: 'FilmReviews',
-  scope: { resource_type: 'film' }
-});
-Review.belongsTo(Film, {
-  foreignKey: 'resource_id',
-  as: 'ReviewedFilm'
-});
-
-Book.hasMany(Review, {
-  foreignKey: 'resource_id',
-  as: 'BookReviews',
-  scope: { resource_type: 'book' }
-});
-Review.belongsTo(Book, {
-  foreignKey: 'resource_id',
-  as: 'ReviewedBook'
-});
-
-Game.hasMany(Review, {
-  foreignKey: 'resource_id',
-  as: 'GameReviews',
-  scope: { resource_type: 'game' }
-});
-Review.belongsTo(Game, {
-  foreignKey: 'resource_id',
-  as: 'ReviewedGame'
-});
-
-// 🔹 Relations entre `Artist`, `Album`, `Track`
-Artist.hasMany(Album, { foreignKey: 'artist_id' });
-Album.belongsTo(Artist, { foreignKey: 'artist_id' });
-
-Album.hasMany(Track, { foreignKey: 'album_id' });
-Track.belongsTo(Album, { foreignKey: 'album_id' });
-
-Track.belongsTo(Artist, { foreignKey: 'artist_id' });
-Artist.hasMany(Track, { foreignKey: 'artist_id' });
-
-// 🔹 Ajout des relations entre `Review` et `Track`, `Album`, `Artist`
-Track.hasMany(Review, {
-  foreignKey: 'resource_id',
-  as: 'TrackReviews',
-  scope: { resource_type: 'track' }
-});
-Review.belongsTo(Track, {
-  foreignKey: 'resource_id',
-  as: 'ReviewedTrack'
-});
-
-Album.hasMany(Review, {
-  foreignKey: 'resource_id',
-  as: 'AlbumReviews',
-  scope: { resource_type: 'album' }
-});
-Review.belongsTo(Album, {
-  foreignKey: 'resource_id',
-  as: 'ReviewedAlbum'
-});
-
-Artist.hasMany(Review, {
-  foreignKey: 'resource_id',
-  as: 'ArtistReviews',
-  scope: { resource_type: 'artist' }
-});
-Review.belongsTo(Artist, {
-  foreignKey: 'resource_id',
-  as: 'ReviewedArtist'
-});
+// 🔹 Relation Générique : `resource_id` est une clé étrangère vers différentes tables
+Review.belongsTo(Film, { foreignKey: 'resource_id', targetKey: 'resource_id', as: 'ReviewedFilm' });
+Review.belongsTo(Book, { foreignKey: 'resource_id', targetKey: 'resource_id', as: 'ReviewedBook' });
+Review.belongsTo(Game, { foreignKey: 'resource_id', targetKey: 'resource_id', as: 'ReviewedGame' });
+Review.belongsTo(Album, { foreignKey: 'resource_id', targetKey: 'resource_id', as: 'ReviewedAlbum' });
+Review.belongsTo(Artist, { foreignKey: 'resource_id', targetKey: 'resource_id', as: 'ReviewedArtist' });
+Review.belongsTo(Track, { foreignKey: 'resource_id', targetKey: 'resource_id', as: 'ReviewedTrack' });
 
 export {
   sequelize,

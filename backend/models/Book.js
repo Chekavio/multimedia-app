@@ -3,6 +3,12 @@ import sequelize from '../config/database.js';
 
 const Book = sequelize.define('Book', {
   book_id: { type: DataTypes.INTEGER, primaryKey: true, autoIncrement: true },
+  resource_id: { 
+    type: DataTypes.UUID, 
+    defaultValue: DataTypes.UUIDV4, 
+    allowNull: false, 
+    unique: true 
+  },
   google_books_id: { type: DataTypes.STRING, allowNull: false, unique: true },
   title: { type: DataTypes.STRING, allowNull: false },
   authors: { type: DataTypes.ARRAY(DataTypes.STRING), allowNull: true },

@@ -1,4 +1,4 @@
-import { Film, Review } from '../models/index.js';
+import { Film, Review, User } from '../models/index.js';
 import Sequelize from 'sequelize';
 
 
@@ -53,9 +53,6 @@ const getPopularFilms = async (req, res) => {
 
 
 
-/**
- * Récupérer les détails d'un film
- */
 const getFilmDetails = async (req, res) => {
   const { id } = req.params;
 
@@ -68,7 +65,14 @@ const getFilmDetails = async (req, res) => {
           attributes: ['review_id', 'user_id', 'rating', 'review_text', 'created_at'],
           where: { resource_type: 'film' },
           required: false,
-        },
+          include: [
+            {
+              model: User,  // ✅ Jointure avec User
+              as: 'User',   // ✅ Doit correspondre EXACTEMENT à l'alias dans `index.js`
+              attributes: ['username', 'profile_picture']
+            }
+          ]
+        }
       ],
     });
 

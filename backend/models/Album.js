@@ -4,6 +4,12 @@ import Artist from './Artist.js';
 
 const Album = sequelize.define('Album', {
     album_id: { type: DataTypes.INTEGER, primaryKey: true, autoIncrement: true },
+    resource_id: { 
+        type: DataTypes.UUID, 
+        defaultValue: DataTypes.UUIDV4, 
+        allowNull: false, 
+        unique: true 
+    },
     spotify_id: { type: DataTypes.STRING, allowNull: false, unique: true },
     title: { type: DataTypes.STRING, allowNull: false },
     artist_id: { 
@@ -18,8 +24,8 @@ const Album = sequelize.define('Album', {
     country: { type: DataTypes.STRING, allowNull: true },
     label: { type: DataTypes.STRING, allowNull: true },
     explicit_lyrics: { type: DataTypes.BOOLEAN, defaultValue: false },
-    genres: { type: DataTypes.ARRAY(DataTypes.STRING(255)), allowNull: true }, // ✅ Correction
-    styles: { type: DataTypes.ARRAY(DataTypes.STRING(255)), allowNull: true }, // ✅ Correction
+    genres: { type: DataTypes.ARRAY(DataTypes.STRING), allowNull: true },
+    styles: { type: DataTypes.ARRAY(DataTypes.STRING), allowNull: true },
     record_type: { type: DataTypes.STRING, allowNull: true },
     average_rate: { type: DataTypes.NUMERIC(3, 2), defaultValue: 0 },
     created_at: { type: DataTypes.DATE, defaultValue: DataTypes.NOW }

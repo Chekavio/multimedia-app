@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { Star, StarHalf, Star as StarOutline, Loader2, ArrowLeft, User2 } from 'lucide-react';
+import { Star, StarHalf, Star as StarOutline, Clock, User2, Loader2, ArrowLeft } from 'lucide-react';
 import { bookService } from '../utils/api';
 
 const BookDetails = () => {
@@ -74,15 +74,13 @@ const BookDetails = () => {
   return (
     <div className="min-h-screen bg-gray-900 text-gray-100 pt-16">
       <div className="container mx-auto px-4 py-8">
-        <button 
-          onClick={() => navigate(-1)}
-          className="mb-6 flex items-center gap-2 text-gray-400 hover:text-white transition"
-        >
+        <button onClick={() => navigate(-1)} className="mb-6 flex items-center gap-2 text-gray-400 hover:text-white transition">
           <ArrowLeft className="w-4 h-4" />
           Retour
         </button>
 
         <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+          {/* Cover du livre */}
           <div className="md:col-span-1">
             <img
               src={book.cover_url || '/api/placeholder/300/450'}
@@ -91,33 +89,71 @@ const BookDetails = () => {
             />
           </div>
 
+          {/* Informations principales */}
           <div className="md:col-span-2">
             <h1 className="text-4xl font-bold mb-4">{book.title}</h1>
 
             <div className="flex flex-wrap gap-4 mb-6 text-sm text-gray-400">
+              {/* Auteurs */}
               {book.authors && (
                 <div className="flex items-center">
                   <User2 className="w-4 h-4 mr-2" />
                   {book.authors.join(', ')}
                 </div>
               )}
-              {book.published_date && (
-                <div>
-                  <span className="mr-2">Publié en :</span> {new Date(book.published_date).getFullYear()}
-                </div>
-              )}
-              <div className="flex items-center gap-1">
-                {book.average_rate ? renderStars(book.average_rate) : <StarOutline className="text-gray-400 w-5 h-5" />}
+
+              {/* Note moyenne */}
+              <div className="flex items-center gap-2">
                 <span>{book.average_rate || 'Non noté'}</span>
+                {book.average_rate ? renderStars(book.average_rate) : <StarOutline className="text-gray-400 w-5 h-5" />}
               </div>
             </div>
 
+            {/* Description */}
             {book.description && (
               <div className="mb-6">
                 <h2 className="text-xl font-semibold mb-2">Description</h2>
                 <p className="text-gray-300">{book.description}</p>
               </div>
             )}
+
+            {/* Genres */}
+            {book.genres && book.genres.length > 0 && (
+              <div className="mb-6">
+                <h2 className="text-xl font-semibold mb-2">Genres</h2>
+                <div className="flex flex-wrap gap-2">
+                  {book.genres.map((genre, index) => (
+                    <span key={index} className="px-3 py-1 bg-gray-800 rounded-full text-sm text-gray-300">
+                      {genre}
+                    </span>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* Infos supplémentaires */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4 text-gray-400">
+              {book.publisher && (
+                <div>
+                  <span className="font-semibold">Éditeur :</span> {book.publisher}
+                </div>
+              )}
+              {book.page_count && (
+                <div>
+                  <span className="font-semibold">Pages :</span> {book.page_count}
+                </div>
+              )}
+              {book.language && (
+                <div>
+                  <span className="font-semibold">Langue :</span> {book.language.toUpperCase()}
+                </div>
+              )}
+              {book.published_date && (
+                <div>
+                  <span className="font-semibold">Publié en :</span> {new Date(book.published_date).getFullYear()}
+                </div>
+              )}
+            </div>
           </div>
         </div>
 
@@ -128,14 +164,14 @@ const BookDetails = () => {
             <div className="space-y-4">
               {book.BookReviews.map((review, index) => (
                 <div key={index} className="p-4 bg-gray-800 rounded-lg">
-                  <div className="flex items-center gap-1">
-                    {renderStars(review.rating)}
-                    <span className="ml-2">{review.rating}</span>
+                  <div className="flex items-center gap-3">
+                    <img src={review.User?.profile_picture || '/api/placeholder/50/50'} className="w-10 h-10 rounded-full" />
+                    <div className="flex items-center gap-2">
+                      <p className="font-semibold text-gray-200">{review.User?.username || 'Utilisateur inconnu'}</p>
+                      <div className="flex">{renderStars(review.rating)}</div>
+                    </div>
                   </div>
                   <p className="text-gray-300 mt-2">{review.review_text}</p>
-                  <p className="text-xs text-gray-500 mt-2">
-                    Publié le {new Date(review.created_at).toLocaleDateString()}
-                  </p>
                 </div>
               ))}
             </div>

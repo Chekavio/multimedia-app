@@ -164,9 +164,19 @@ const FilmDetails = () => {
             <div className="space-y-4">
               {film.FilmReviews.map((review, index) => (
                 <div key={index} className="p-4 bg-gray-800 rounded-lg">
-                  <div className="flex items-center gap-1">
-                    {renderStars(review.rating)}
-                    <span className="ml-2">{review.rating}</span>
+                  <div className="flex items-center gap-3">
+                    {/* 🔥 Image de profil */}
+                    <img 
+                      src={review.User?.profile_picture || '/api/placeholder/50/50'} 
+                      alt={review.User?.username || 'Utilisateur inconnu'} 
+                      className="w-10 h-10 rounded-full"
+                    />
+                    {/* 🔥 Username & étoiles sur la même ligne */}
+                    <div className="flex items-center gap-2">
+                      <p className="font-semibold text-gray-200">{review.User?.username || 'Utilisateur inconnu'}</p>
+                      <div className="flex">{renderStars(review.rating)}</div>
+                    </div>
+
                   </div>
                   <p className="text-gray-300 mt-2">{review.review_text}</p>
                   <p className="text-xs text-gray-500 mt-2">

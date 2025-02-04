@@ -5,11 +5,17 @@ import Artist from './Artist.js';
 
 const Track = sequelize.define('Track', {
     track_id: { type: DataTypes.INTEGER, primaryKey: true, autoIncrement: true },
+    resource_id: { 
+        type: DataTypes.UUID, 
+        defaultValue: DataTypes.UUIDV4, 
+        allowNull: false, 
+        unique: true 
+    },
     spotify_id: { type: DataTypes.STRING, allowNull: false, unique: true },
     title: { type: DataTypes.STRING, allowNull: false },
     album_id: { 
         type: DataTypes.INTEGER, 
-        allowNull: false,  // ✅ Une track est obligatoirement reliée à un album
+        allowNull: false,  
         references: { model: Album, key: 'album_id' } 
     },
     artist_id: { 

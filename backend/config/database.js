@@ -1,30 +1,45 @@
 import { Sequelize } from 'sequelize';
+import pg from 'pg';
 import dotenv from 'dotenv';
-import path from 'path';
-import { fileURLToPath } from 'url';
 
-// 🔹 Définition de `__dirname`
-const __dirname = path.dirname(fileURLToPath(import.meta.url));
+dotenv.config();
 
-// 🔹 Charger `.env`
-dotenv.config({ path: path.resolve(__dirname, '../.env') });
+// Mock pool for when PostgreSQL is not available
+const mockPool = {
+  query: async () => ({ rows: [] }),
+};
 
-// 🔹 Vérifier `DB_PASSWORD`
-console.log("🔍 DB_PASSWORD dans database.js :", typeof process.env.DB_PASSWORD, `"${process.env.DB_PASSWORD}"`);
+let sequelize = null;
+let pgPool = null;
 
-// 🔹 Forcer `DB_PASSWORD` en string
-const password = process.env.DB_PASSWORD ? String(process.env.DB_PASSWORD) : '';
+try {
+  sequelize = new Sequelize(
+    process.env.DB_NAME,
+    process.env.DB_USER,
+    process.env.DB_PASSWORD,
+    {
+      host: process.env.DB_HOST,
+      dialect: 'postgres',
+      port: process.env.DB_PORT,
+      logging: false,
+    }
+  );
 
-const sequelize = new Sequelize(
-  process.env.DB_NAME,
-  process.env.DB_USER,
-  password,  // Utilisation du mot de passe correctement typé
-  {
+  // Create PostgreSQL pool for direct queries
+  pgPool = new pg.Pool({
+    user: process.env.DB_USER,
     host: process.env.DB_HOST,
-    dialect: 'postgres',
+    database: process.env.DB_NAME,
+    password: process.env.DB_PASSWORD,
     port: process.env.DB_PORT,
-    logging: false,
-  }
-);
+  });
 
-export default sequelize;
+  console.log('✅ PostgreSQL connection configured successfully');
+} catch (error) {
+  console.warn('⚠️ PostgreSQL connection not configured:', error.message);
+}
+
+// Use the real pool if available, otherwise use mock
+const pool = pgPool || mockPool;
+
+export { sequelize as default, pool };

@@ -1,163 +1,263 @@
 import axios from 'axios';
 import dotenv from 'dotenv';
-import { sequelize, Film } from '../models/index.js';
+import mongoose from 'mongoose';
+import Film from '../models/Film.js';
+import { v4 as uuidv4 } from 'uuid';
+import { fileURLToPath } from 'url';
+import { dirname, join } from 'path';
+import https from 'https';
+import fs from 'fs';
 
-dotenv.config();
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = dirname(__filename);
 
+// Charger les variables d'environnement
+dotenv.config({ path: join(__dirname, '../.env') });
+
+// Configuration
 const API_KEY = process.env.TMDB_API_KEY;
 const ACCESS_TOKEN = process.env.TMDB_ACCESS_TOKEN;
-const BASE_URL = 'https://api.themoviedb.org/3/discover/movie';
+const BASE_URL = 'https://api.themoviedb.org/3';
+const MONGODB_URI = process.env.MONGODB_URI;
+const CHECKPOINT_FILE = join(__dirname, 'tmdb_checkpoint.json');
+const ERROR_LOG = join(__dirname, 'tmdb_errors.log');
 
-const MAX_CONCURRENT_REQUESTS = 10; // 🔥 Téléchargement parallèle
-const START_YEAR = 2025;
-const END_YEAR = 1900;
+// État global pour les statistiques
+let stats = {
+    totalProcessed: 0,
+    added: 0,
+    updated: 0,
+    skipped: 0,
+    errors: 0,
+    lastYear: null,
+    lastPage: null,
+    startTime: Date.now()
+};
 
-// 📌 Genres à exclure pour éviter les films X
-const EXCLUDED_GENRES = ["Adult", "Erotic", "Pornographic"];
-
-// 📌 Mots-clés pour détecter les films X dans la description
-const BANNED_WORDS = ["explicit", "porn", "erotic", "uncensored", "hardcore", "adult film", "xxx", "18+"];
-
-// 📌 Fonction pour récupérer les films d'une année spécifique
-const fetchMoviesForYear = async (year, page) => {
+// Charger le point de reprise s'il existe
+const loadCheckpoint = () => {
     try {
-        const response = await axios.get(BASE_URL, {
-            headers: { Authorization: `Bearer ${ACCESS_TOKEN}` },
-            params: {
-                api_key: API_KEY,
-                sort_by: "popularity.desc",
-                "primary_release_year": year, // ✅ Filtrage par année
-                include_adult: false, // 🚫 Pas de films X
-                include_video: false,
-                page
-            }
-        });
+        if (fs.existsSync(CHECKPOINT_FILE)) {
+            const data = JSON.parse(fs.readFileSync(CHECKPOINT_FILE, 'utf8'));
+            stats = { ...stats, ...data };
+            console.log('📥 Point de reprise chargé:', data);
+            return data;
+        }
+    } catch (error) {
+        console.error('⚠️ Erreur lors du chargement du point de reprise:', error);
+    }
+    return null;
+};
 
+// Sauvegarder le point de reprise
+const saveCheckpoint = () => {
+    try {
+        fs.writeFileSync(CHECKPOINT_FILE, JSON.stringify(stats, null, 2));
+        console.log('💾 Point de reprise sauvegardé');
+    } catch (error) {
+        console.error('⚠️ Erreur lors de la sauvegarde du point de reprise:', error);
+    }
+};
+
+// Logger les erreurs
+const logError = (error, context) => {
+    const timestamp = new Date().toISOString();
+    const errorMsg = `[${timestamp}] ${context}: ${error.message}\n`;
+    fs.appendFileSync(ERROR_LOG, errorMsg);
+    stats.errors++;
+};
+
+// Configuration axios optimisée
+const axiosInstance = axios.create({
+    timeout: 30000,
+    headers: {
+        'Authorization': `Bearer ${ACCESS_TOKEN}`,
+        'Accept': 'application/json',
+        'Accept-Language': 'fr-FR'
+    },
+    httpsAgent: new https.Agent({
+        keepAlive: true,
+        maxSockets: 50
+    })
+});
+
+// Fonction pour attendre avec backoff exponentiel
+const delay = async (ms, retryCount = 0) => {
+    const backoff = ms * Math.pow(2, retryCount);
+    await new Promise(resolve => setTimeout(resolve, backoff));
+};
+
+// Fonction pour faire une requête avec retry intelligent
+const makeRequest = async (endpoint, params = {}, retryCount = 0) => {
+    try {
+        const response = await axiosInstance.get(`${BASE_URL}${endpoint}`, { params });
         return response.data;
     } catch (error) {
-        console.error(`❌ Erreur pour l'année ${year}, page ${page}:`, error.response?.data || error.message);
-        return null;
-    }
-};
+        const isRateLimitError = error.response?.status === 429;
+        const isServerError = error.response?.status >= 500;
+        const isNetworkError = !error.response;
 
-// 📌 Fonction pour récupérer TOUS les films de 2025 à 1900
-const fetchAndStoreMovies = async () => {
-    for (let year = START_YEAR; year >= END_YEAR; year--) {
-        console.log(`📅 Récupération des films de l'année ${year}...`);
+        if ((isRateLimitError || isServerError || isNetworkError) && retryCount < 5) {
+            const waitTime = isRateLimitError 
+                ? parseInt(error.response.headers['retry-after']) * 1000 || 10000
+                : 2000 * Math.pow(2, retryCount);
 
-        let currentPage = 1;
-        let totalPages = 1;
-
-        while (currentPage <= totalPages) {
-            const pagesToFetch = [];
-
-            for (let i = 0; i < MAX_CONCURRENT_REQUESTS && currentPage <= totalPages; i++) {
-                pagesToFetch.push(fetchMoviesForYear(year, currentPage));
-                currentPage++;
-            }
-
-            console.log(`📥 Téléchargement des pages ${currentPage - MAX_CONCURRENT_REQUESTS} à ${currentPage - 1} pour ${year}...`);
-
-            const responses = await Promise.all(pagesToFetch);
-            const movies = responses.flatMap(res => (res ? res.results : []));
-
-            if (responses[0]) {
-                totalPages = responses[0].total_pages > 500 ? 500 : responses[0].total_pages; // ✅ Limite à 500 pages max
-            }
-
-            console.log(`✅ ${movies.length} films récupérés pour ${year}, page ${currentPage - MAX_CONCURRENT_REQUESTS}...`);
-
-            await fetchAndStoreMovieDetails(movies);
+            console.log(`⏳ Attente de ${waitTime/1000}s avant nouvelle tentative (${retryCount + 1}/5)...`);
+            await delay(waitTime, retryCount);
+            return makeRequest(endpoint, params, retryCount + 1);
         }
+        throw error;
     }
-
-    console.log(`🎬 ✅ Récupération terminée pour toutes les années.`);
 };
 
-// 📌 Fonction pour récupérer les détails d’un film
-const fetchMovieDetails = async (movieId) => {
+// Fonction pour récupérer les films avec gestion d'erreurs améliorée
+const fetchMoviesForYear = async (year, page) => {
     try {
-        const response = await axios.get(`https://api.themoviedb.org/3/movie/${movieId}`, {
-            headers: { Authorization: `Bearer ${ACCESS_TOKEN}` },
-            params: { api_key: API_KEY, append_to_response: 'credits' },
+        console.log(`\n🔍 Recherche des films de ${year} (page ${page})...`);
+        
+        const data = await makeRequest('/search/movie', {
+            api_key: API_KEY,
+            query: year.toString(),
+            year: year,
+            include_adult: false,
+            page,
+            region: 'FR',
+            language: 'fr-FR'
         });
 
-        const movie = response.data;
+        if (!data.results?.length) {
+            console.log(`ℹ️ Aucun film trouvé pour ${year} (page ${page})`);
+            return null;
+        }
 
-        return {
-            tmdb_id: movie.id,
-            title: movie.title,
-            original_language: movie.original_language,
-            release_date: movie.release_date || null,
-            description: movie.overview || '',
-            poster_url: movie.poster_path ? `https://image.tmdb.org/t/p/w500${movie.poster_path}` : null,
-            genres: movie.genres.map(g => g.name),
-            casting: movie.credits.cast.slice(0, 20).map(actor => actor.name),
-            director: movie.credits.crew.find((member) => member.job === 'Director')?.name || null,
-            duration: movie.runtime || null
-        };
+        // Filtrer et valider les résultats
+        const validMovies = data.results.filter(movie => {
+            const movieYear = new Date(movie.release_date).getFullYear();
+            return movieYear === year && movie.title && movie.id;
+        });
+
+        console.log(`✅ Trouvé ${validMovies.length} films valides sur ${data.results.length} résultats`);
+        
+        // Mettre à jour les stats
+        stats.totalProcessed += validMovies.length;
+        stats.lastYear = year;
+        stats.lastPage = page;
+        saveCheckpoint();
+
+        return { ...data, results: validMovies };
     } catch (error) {
-        console.error(`❌ Erreur pour le film ID ${movieId}:`, error.response?.data || error.message);
+        logError(error, `Récupération films ${year} page ${page}`);
+        console.error(`❌ Erreur pour ${year} page ${page}:`, error.message);
         return null;
     }
 };
 
-// 📌 Fonction pour filtrer et exclure les films X
-const filterNonXMovies = (movies) => {
-    return movies.filter(movie => {
-        const isAdultGenre = movie.genres.some(genre => EXCLUDED_GENRES.includes(genre));
-        const isExplicitContent = BANNED_WORDS.some(word => movie.description.toLowerCase().includes(word));
+// Fonction pour récupérer les détails d'un film avec retry
+const fetchMovieDetails = async (movieId) => {
+    try {
+        const data = await makeRequest(`/movie/${movieId}`, {
+            api_key: API_KEY,
+            append_to_response: 'credits,keywords'
+        });
 
-        return !isAdultGenre && !isExplicitContent;
-    });
-};
-
-// 📌 Fonction pour stocker les films en base (Évite les doublons)
-const fetchAndStoreMovieDetails = async (movies) => {
-    const moviesToInsert = [];
-
-    for (const movie of movies) {
-        const existingMovie = await Film.findOne({ where: { tmdb_id: movie.id } });
-        if (existingMovie) {
-            console.log(`⚠️ Film déjà en base : ${movie.title} (${movie.release_date})`);
-            continue;
-        }
-
-        const movieDetails = await fetchMovieDetails(movie.id);
-        if (movieDetails) {
-            moviesToInsert.push(movieDetails);
-        }
-    }
-
-    // ✅ Filtrer les films X avant insertion
-    const safeMovies = filterNonXMovies(moviesToInsert);
-
-    if (safeMovies.length > 0) {
-        await Film.bulkCreate(safeMovies, { ignoreDuplicates: true });
-        console.log(`✅ ${safeMovies.length} films ajoutés en base.`);
+        return {
+            tmdb_id: data.id,
+            title: data.title,
+            release_date: data.release_date,
+            director: data.credits?.crew?.find(p => p.job === "Director")?.name || "",
+            genres: data.genres?.map(g => g.name) || [],
+            description: data.overview,
+            poster_url: data.poster_path ? `https://image.tmdb.org/t/p/w500${data.poster_path}` : null,
+            duration: data.runtime,
+            casting: data.credits?.cast?.slice(0, 5).map(a => a.name) || [],
+            keywords: data.keywords?.keywords?.map(k => k.name) || []
+        };
+    } catch (error) {
+        logError(error, `Détails film ${movieId}`);
+        return null;
     }
 };
 
-// 📌 Fonction pour supprimer les doublons en base PostgreSQL
-const removeDuplicateMovies = async () => {
-    console.log("🛠 Vérification et suppression des doublons...");
-    await sequelize.query(`
-        DELETE FROM films
-        WHERE ctid NOT IN (
-            SELECT MIN(ctid)
-            FROM films
-            GROUP BY tmdb_id
-        )
-    `);
-    console.log("✅ Suppression des doublons terminée.");
+// Fonction principale avec reprise sur erreur
+const main = async () => {
+    try {
+        // Connexion MongoDB
+        await mongoose.connect(MONGODB_URI);
+        console.log('✅ Connecté à MongoDB');
+
+        // Charger le dernier point de reprise
+        const checkpoint = loadCheckpoint();
+        const startYear = checkpoint?.lastYear || 2024;
+        const startPage = checkpoint?.lastPage ? checkpoint.lastPage + 1 : 1;
+
+        console.log(`🚀 Démarrage depuis ${startYear} (page ${startPage})`);
+
+        for (let year = startYear; year >= 1900; year--) {
+            let page = year === startYear ? startPage : 1;
+            let hasMorePages = true;
+
+            while (hasMorePages) {
+                const data = await fetchMoviesForYear(year, page);
+                
+                if (!data) {
+                    hasMorePages = false;
+                    continue;
+                }
+
+                // Traiter les films par lots de 5
+                const movies = data.results;
+                for (let i = 0; i < movies.length; i += 5) {
+                    const batch = movies.slice(i, i + 5);
+                    await Promise.all(batch.map(async (movie) => {
+                        try {
+                            const details = await fetchMovieDetails(movie.id);
+                            if (!details) return;
+
+                            const existing = await Film.findOne({ tmdb_id: details.tmdb_id });
+                            if (existing) {
+                                await Film.updateOne({ tmdb_id: details.tmdb_id }, details);
+                                stats.updated++;
+                            } else {
+                                await Film.create({ ...details, resource_id: uuidv4() });
+                                stats.added++;
+                            }
+                        } catch (error) {
+                            logError(error, `Traitement film ${movie.id}`);
+                        }
+                    }));
+
+                    // Afficher les stats toutes les 20 films
+                    if ((stats.totalProcessed % 20) === 0) {
+                        const elapsed = (Date.now() - stats.startTime) / 1000;
+                        console.log(`\n📊 Stats après ${elapsed.toFixed(0)}s:`);
+                        console.log(`- Films traités: ${stats.totalProcessed}`);
+                        console.log(`- Ajoutés: ${stats.added}`);
+                        console.log(`- Mis à jour: ${stats.updated}`);
+                        console.log(`- Erreurs: ${stats.errors}`);
+                        console.log(`- Vitesse: ${(stats.totalProcessed / elapsed).toFixed(2)} films/s\n`);
+                    }
+                }
+
+                hasMorePages = page < data.total_pages;
+                page++;
+                await delay(1000); // Pause entre les pages
+            }
+        }
+
+        console.log('\n✅ Importation terminée !');
+        console.log(`📊 Bilan final:`);
+        console.log(`- Films traités: ${stats.totalProcessed}`);
+        console.log(`- Ajoutés: ${stats.added}`);
+        console.log(`- Mis à jour: ${stats.updated}`);
+        console.log(`- Erreurs: ${stats.errors}`);
+
+    } catch (error) {
+        console.error('❌ Erreur critique:', error);
+        logError(error, 'Erreur critique');
+    } finally {
+        await mongoose.connection.close();
+    }
 };
 
-// 📌 Lancer la récupération
-sequelize.authenticate()
-    .then(async () => {
-        console.log('✅ Connexion à la base de données réussie.');
-        await fetchAndStoreMovies();
-        await removeDuplicateMovies(); // ✅ Nettoyage des doublons après insertion
-        sequelize.close();
-    })
-    .catch((error) => console.error('❌ Erreur de connexion à la base de données :', error.message));
+// Lancer le script
+main();

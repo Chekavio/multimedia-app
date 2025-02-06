@@ -9,25 +9,25 @@ const User = sequelize.define('User', {
   },
   username: {
     type: DataTypes.STRING,
-    unique: true,
     allowNull: false,
+    unique: true,
   },
   email: {
     type: DataTypes.STRING,
-    unique: true,
     allowNull: false,
+    unique: true,
   },
   password_hash: {
     type: DataTypes.STRING,
     allowNull: false,
   },
   profile_picture: {
-    type: DataTypes.TEXT,
+    type: DataTypes.STRING, // Store image path or URL
+    allowNull: true,
   },
 }, {
   tableName: 'users',
   timestamps: false,
 });
-
 
 export default User;

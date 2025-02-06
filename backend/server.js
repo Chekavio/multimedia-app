@@ -1,14 +1,10 @@
 import express from 'express';
-import bodyParser from 'body-parser';
 import cors from 'cors';
-import 'dotenv/config';
-import { sequelize } from './models/index.js'; // Ajoute `.js`
-import filmRoutes from './routes/filmRoutes.js'; // Ajoute `.js`
-import userRoutes from './routes/userRoutes.js'; // Ajoute `.js`
-import bookRoutes from './routes/bookRoutes.js';
-import gameRoutes from './routes/gameRoutes.js';
-import musicRoutes from './routes/musicRoutes.js'; // 🎶 Import des routes musique
-
+import bodyParser from 'body-parser';
+import connectMongoDB from './config/mongodb.js';
+import sequelize from './config/database.js';
+import userRoutes from './routes/userRoutes.js';
+import filmRoutes from './routes/filmRoutes.js';
 
 const app = express();
 const PORT = process.env.PORT || 5000;
@@ -17,22 +13,31 @@ const PORT = process.env.PORT || 5000;
 app.use(cors());
 app.use(bodyParser.json());
 
-// Routes
-app.use('/api/films', filmRoutes); // Routes films
-app.use('/api/users', userRoutes); // Routes utilisateurs
-app.use('/api/books', bookRoutes);
-app.use('/api/games', gameRoutes);
-app.use('/api/music', musicRoutes); // 🎶 Routes musique
+// API Routes
+app.use('/api/users', userRoutes);  // All routes in userRoutes will be prefixed with /api/users
+app.use('/api/films', filmRoutes);  // All routes in filmRoutes will be prefixed with /api/films
 
-// Test de connexion à la base de données
-sequelize.authenticate()
-  .then(() => console.log('✅ Connexion à la base de données réussie.'))
-  .catch((err) => console.error('❌ Erreur de connexion à la base de données :', err));
+// Database Connections
+const startServer = async () => {
+  try {
+    // Try to connect to PostgreSQL but don't fail if it's not available
+    try {
+      await sequelize.authenticate();
+      console.log('✅ Connected to PostgreSQL.');
+    } catch (pgError) {
+      console.warn('⚠️ PostgreSQL connection failed:', pgError.message);
+      console.log('⚠️ Continuing without PostgreSQL...');
+    }
 
-// Synchroniser les modèles
-sequelize.sync({ force: false, alter: true })  // 🔹 Ne supprime pas les données !
+    // MongoDB connection is required
+    await connectMongoDB();
 
-// Lancer le serveur
-app.listen(PORT, () => {
-  console.log(`🚀 Serveur lancé sur http://localhost:${PORT}`);
-});
+    app.listen(PORT, () => {
+      console.log(`🚀 Server running on http://localhost:${PORT}`);
+    });
+  } catch (error) {
+    console.error('❌ Database connection error:', error);
+  }
+};
+
+startServer();

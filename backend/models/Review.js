@@ -1,46 +1,34 @@
-import { DataTypes } from 'sequelize';
-import sequelize from '../config/database.js';
+import mongoose from 'mongoose';
+import Film from './Film.js';  // ✅ Import the Film model
 
-const Review = sequelize.define('Review', {
-  review_id: {
-    type: DataTypes.INTEGER,
-    primaryKey: true,
-    autoIncrement: true,
-  },
-  user_id: {
-    type: DataTypes.INTEGER,
-    allowNull: false,
-  },
-  resource_type: {
-    type: DataTypes.ENUM('track', 'album', 'artist', 'film', 'book', 'game'),
-    allowNull: false,
-  },
-  resource_id: { 
-    type: DataTypes.UUID, // ✅ Doit correspondre aux UUID des autres tables
-    allowNull: false,
-  },
-  rating: {
-    type: DataTypes.NUMERIC(2, 1),
-    allowNull: false,
-    validate: { min: 1, max: 5 },
-  },
-  review_text: {
-    type: DataTypes.TEXT,
-    allowNull: true,
-  },
-  created_at: {
-    type: DataTypes.DATE,
-    defaultValue: DataTypes.NOW,
-  },
-}, {
-  tableName: 'reviews',
-  timestamps: false,
-  indexes: [
-    {
-      unique: true,
-      fields: ['user_id', 'resource_id', 'resource_type']
-    }
-  ]
+const reviewSchema = new mongoose.Schema({
+  user_id: { type: Number, required: true },         // PostgreSQL User ID
+  resource_id: { type: String, required: true },     // UUID linking to films
+  resource_type: { type: String, required: true },   // 'film', 'book', etc.
+  rating: { type: Number, min: 1, max: 5, required: true },
+  review_text: String,
+  created_at: { type: Date, default: Date.now },
 });
 
-export default Review;
+// ✅ Post-save hook to update the average_rate
+reviewSchema.post('save', async function (doc) {
+  try {
+    if (doc.resource_type === 'film') {  // ✅ Only update if it's a film
+      const reviews = await mongoose.model('Review').find({ resource_id: doc.resource_id });
+
+      const averageRate = reviews.reduce((sum, review) => sum + review.rating, 0) / reviews.length;
+
+      // ✅ Update the average_rate in the films collection
+      await Film.updateOne(
+        { resource_id: doc.resource_id },
+        { $set: { average_rate: averageRate.toFixed(2) } }  // Rounded to 2 decimal places
+      );
+
+      console.log(`🎯 Updated average_rate for film ${doc.resource_id}: ${averageRate.toFixed(2)}`);
+    }
+  } catch (error) {
+    console.error('❌ Error updating average_rate:', error);
+  }
+});
+
+export default mongoose.model('Review', reviewSchema);

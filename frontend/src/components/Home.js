@@ -79,8 +79,8 @@ const Home = () => {
 
   const renderFilm = (film) => (
     <MediaCard
-      key={film.film_id}
-      id={film.film_id}
+      key={film.resource_id}
+      id={film.resource_id}
       title={film.title}
       imageUrl={film.poster_url}
       subtitle={new Date(film.release_date).getFullYear()}

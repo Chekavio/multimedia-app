@@ -74,12 +74,7 @@ const FilmDetails = () => {
     );
   }
 
-  const averageRating = film.FilmReviews && film.FilmReviews.length > 0
-    ? (
-        film.FilmReviews.reduce((sum, review) => sum + parseFloat(review.rating), 0) /
-        film.FilmReviews.length
-      ).toFixed(1)
-    : null;
+  const averageRating = film.average_rate || null;
 
   return (
     <div className="min-h-screen bg-gray-900 text-gray-100 pt-16">
@@ -160,23 +155,21 @@ const FilmDetails = () => {
         {/* Reviews Section */}
         <div className="mt-12">
           <h2 className="text-2xl font-semibold mb-4">Avis des utilisateurs</h2>
-          {film.FilmReviews && film.FilmReviews.length > 0 ? (
+          {film.reviews && film.reviews.length > 0 ? (
             <div className="space-y-4">
-              {film.FilmReviews.map((review, index) => (
+              {film.reviews.map((review, index) => (
                 <div key={index} className="p-4 bg-gray-800 rounded-lg">
                   <div className="flex items-center gap-3">
-                    {/* 🔥 Image de profil */}
+                    {/* Profile picture */}
                     <img 
-                      src={review.User?.profile_picture || '/api/placeholder/50/50'} 
-                      alt={review.User?.username || 'Utilisateur inconnu'} 
-                      className="w-10 h-10 rounded-full"
+                      src={review.profile_picture || '/placeholder-avatar.png'} 
+                      alt={review.username} 
+                      className="w-10 h-10 rounded-full object-cover bg-gray-700"
                     />
-                    {/* 🔥 Username & étoiles sur la même ligne */}
                     <div className="flex items-center gap-2">
-                      <p className="font-semibold text-gray-200">{review.User?.username || 'Utilisateur inconnu'}</p>
+                      <p className="font-semibold text-gray-200">{review.username}</p>
                       <div className="flex">{renderStars(review.rating)}</div>
                     </div>
-
                   </div>
                   <p className="text-gray-300 mt-2">{review.review_text}</p>
                   <p className="text-xs text-gray-500 mt-2">

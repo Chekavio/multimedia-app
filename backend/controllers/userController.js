@@ -1,68 +1,55 @@
+import User from '../models/User.js';
+import Review from '../models/Review.js';
 import bcrypt from 'bcrypt';
-import jwt from 'jsonwebtoken';
-import { User } from '../models/index.js';
 
-const createUser = async (req, res) => {
-  const { username, email, password } = req.body;
-
+// ✅ Create a new user
+// ✅ Create a new user
+export const createUser = async (req, res) => {
   try {
-    const hashedPassword = await bcrypt.hash(password, 10);
-    const user = await User.create({
+    const { username, email, password } = req.body;
+
+    // ✅ 1. Hash the password
+    const password_hash = await bcrypt.hash(password, 10);
+
+    // ✅ 2. Save the user with the hashed password
+    const newUser = await User.create({
       username,
       email,
-      password_hash: hashedPassword,
+      password_hash,  // Storing the hashed password
     });
 
-    res.status(201).json({ message: 'Utilisateur créé avec succès', user });
+    res.status(201).json(newUser);
   } catch (error) {
-    console.error(error);
-    res.status(500).json({ message: 'Erreur lors de la création de l’utilisateur' });
+    console.error('Error creating user:', error);
+    res.status(400).json({ error: 'Failed to create user.' });
   }
 };
 
-const loginUser = async (req, res) => {
-  const { email, password } = req.body;
-
+// ✅ Create a review linked to a user and resource
+// ✅ Add a review linked to a user
+export const createReview = async (req, res) => {
   try {
-    const user = await User.findOne({ where: { email } });
+    const { user_id, resource_id, resource_type, rating, review_text } = req.body;
+
+    // 🔍 Ensure the user exists in PostgreSQL
+    const user = await User.findByPk(user_id);
     if (!user) {
-      return res.status(404).json({ message: 'Utilisateur non trouvé' });
+      return res.status(404).json({ error: 'User not found.' });
     }
 
-    const isPasswordValid = await bcrypt.compare(password, user.password_hash);
-    if (!isPasswordValid) {
-      return res.status(401).json({ message: 'Mot de passe incorrect' });
-    }
+    // ✅ Create the review in MongoDB
+    const newReview = new Review({
+      user_id,
+      resource_id,
+      resource_type,
+      rating,
+      review_text,
+    });
 
-    const token = jwt.sign(
-      { user_id: user.user_id, email: user.email },
-      process.env.JWT_SECRET,
-      { expiresIn: '1h' }
-    );
-
-    res.status(200).json({ message: 'Connexion réussie', token });
+    await newReview.save();
+    res.status(201).json(newReview);
   } catch (error) {
-    console.error(error);
-    res.status(500).json({ message: 'Erreur lors de la connexion' });
+    console.error('Error creating review:', error);
+    res.status(400).json({ error: 'Failed to create review.' });
   }
 };
-
-const getUserProfile = async (req, res) => {
-  try {
-    const token = req.headers.authorization.split(' ')[1];
-    const decoded = jwt.verify(token, process.env.JWT_SECRET);
-    const user = await User.findByPk(decoded.user_id);
-
-    if (!user) {
-      return res.status(404).json({ message: 'Utilisateur non trouvé' });
-    }
-
-    res.status(200).json(user);
-  } catch (error) {
-    console.error(error);
-    res.status(401).json({ message: 'Non autorisé' });
-  }
-};
-
-// 🔹 Exporter toutes les fonctions correctement
-export { createUser, loginUser, getUserProfile };
